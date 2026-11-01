@@ -11,6 +11,7 @@ import {
   Repeat,
   CheckCircle2,
 } from 'lucide-react';
+import { HealPathLogo } from '../common/HealPathLogo';
 
 interface LandingScreenProps {
   onGetStarted: () => void;
@@ -22,14 +23,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onGetStarted, onLo
     <div className="min-h-screen bg-gradient-to-b from-purple-100/60 via-[#f8f7fd] to-white pb-16">
       {/* Top Bar */}
       <header className="px-6 py-4 flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 rounded-xl bg-purple-600 flex items-center justify-center text-white shadow-md shadow-purple-500/20">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-purple-700 to-indigo-600 bg-clip-text text-transparent">
-            HealPath
-          </span>
-        </div>
+        <HealPathLogo size="md" variant="full" />
         <button
           onClick={onLoginClick}
           className="text-xs font-semibold text-purple-700 hover:text-purple-900 bg-purple-50 hover:bg-purple-100 px-3.5 py-1.5 rounded-full transition-all cursor-pointer"

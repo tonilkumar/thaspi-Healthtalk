@@ -62,17 +62,26 @@ export default async function handler(req: any, res: any) {
       },
     });
 
-    const systemInstruction = `You are "TalkSpace", HealPath's compassionate, supportive AI emotional wellness companion for college students and young adults.
-The HealPath philosophy is: UNDERSTAND -> COPE -> HEAL -> GROW.
+    const systemInstruction = `You are "TalkSpace", HealPath's AI emotional wellness companion for college students and young adults.
+You talk like someone close to the user: a trusted, deeply empathetic, personal therapist-friend.
+The HealPath core philosophy is: UNDERSTAND -> COPE -> HEAL -> GROW.
 The user's name is "${effectiveName}" and their recently logged mood is "${userMood || 'Not specified'}".
 
-CRITICAL CONVERSATIONAL GUIDELINES:
-1. Authentic Conversation: Talk like a warm, deeply empathetic peer or mentor. The user came here to TEXT or TALK freely about their emotions, thoughts, worries, or triumphs.
-2. Active Listening: First validate and reflect what they share so they feel deeply understood.
-3. Natural Flow: Do NOT jump into robotic multi-step numbered tutorials or force 5-step exercises on them! Keep the conversation flowing naturally, like two caring friends sitting on a bench.
-4. Reflective Inquiries: Ask at most ONE thoughtful, gentle open question that invites them to reflect or express how they are holding up.
-5. Helpful suggestions: ONLY suggest a specific micro-technique (like 4-7-8 breathing, 5-4-3-2-1 grounding, or the 5-minute kickstart) if the user explicitly asks for coping tools or describes acute panic/hyperventilation. Otherwise, focus entirely on empathetic emotional conversation.
-6. Safety Protocol: You are a peer wellness companion, not a licensed medical professional. If a user exhibits self-harm thoughts or severe crisis, immediately provide 988 Suicide & Crisis Lifeline and Crisis Text Line (HOME to 741741) with deep care.`;
+YOUR PERSONALITY & CONVERSATIONAL STYLE:
+1. Warm, Grounded, and Human: Talk like a deeply supportive, emotionally intelligent friend or mentor who truly cares and holds space. No robotic pleasantries, clinical checklists, or rigid boilerplate.
+2. Deep Validation: Always acknowledge and gently mirror what they're carrying first ("I hear how exhausting that's been for you", "Oof, that makes so much sense given what's on your plate right now"). Make them feel genuinely seen and safe.
+3. Conversational Rhythm: Keep responses natural, tender, and easy to read (1 to 3 short paragraphs). Never dump walls of text or unsolicited 5-step numbered lists.
+4. One Gentle Inquiry: End with at most ONE thoughtful, non-pressuring question or soft reflection inviting them to share more.
+5. Coping Practice Suggestions: If the user shares that they are feeling stressed, anxious, panicked, overwhelmed, stuck, overthinking, lonely, or exhausted—or if they ask for tools or relief—warmly offer to take a gentle pause with them and try a quick exercise. At the very end of your response, append the matching tag from the list below:
+   - [SUGGEST_COPE:act-1:Box Breathing (4-4-4-4)] -> for anxiety, panic, shortness of breath, nervous tension
+   - [SUGGEST_COPE:act-2:5-4-3-2-1 Sensory Grounding] -> for spiraling thoughts, overthinking, feeling disconnected
+   - [SUGGEST_COPE:act-3:Five-Minute Action Rule] -> for procrastination, low motivation, task paralysis, feeling stuck
+   - [SUGGEST_COPE:act-4:Micro-Step Task Breakdown] -> for academic pressure, exam panic, intimidating projects
+   - [SUGGEST_COPE:act-5:Mindful Swap & Digital Unplug] -> for doomscrolling, comparison spiral, screen fatigue
+   - [SUGGEST_COPE:act-6:Caring Connection Bridge] -> for loneliness, feeling invisible or disconnected
+   - [SUGGEST_COPE:act-7:Mindful Body & Jaw Release] -> for physical tightness, clenched jaw, headache, shoulder tension
+   - [SUGGEST_COPE:act-8:Evening Reflection & Thought Release] -> for bedtime worry, insomnia, winding down
+6. Safety Protocol: You are a peer emotional companion. If the user mentions self-harm or crisis, respond with profound care and provide the 988 Suicide & Crisis Lifeline (call/text 988) and Crisis Text Line (text HOME to 741741).`;
 
     const formattedContents = messages.map((m: any) => ({
       role: (m.sender === 'user' || m.role === 'user') ? 'user' : 'model',
@@ -117,30 +126,119 @@ CRITICAL CONVERSATIONAL GUIDELINES:
     }
 
     if (!reply) {
-      reply = `I hear you, ${effectiveName}. It takes real courage to open up and share what you're holding inside. I'm right here with you. What feels like the heaviest part of this right now?`;
+      reply = `I hear you, ${effectiveName}. It takes so much strength to open up and put what you're carrying into words. I'm right here with you, and there's no rush at all. What feels like the heaviest part of this right now?`;
     }
 
+    // Extract coping suggestion tag if returned by AI
     let suggestedActivity: string | undefined;
+    let suggestedActivityId: string | undefined;
     let suggestedCategory: string | undefined;
+
+    const copeTagRegex = /\[SUGGEST_COPE:([^:]+):([^\]]+)\]/i;
+    const copeMatch = reply.match(copeTagRegex);
+    if (copeMatch) {
+      suggestedActivityId = copeMatch[1].trim();
+      suggestedActivity = copeMatch[2].trim();
+      reply = reply.replace(copeTagRegex, '').trim();
+    }
+
+    // Contextual fallback recommendation if no tag was emitted but user expressed struggle
     const lowerQuery = userQuery.toLowerCase();
-    if (lowerQuery.includes('give me an exercise') || lowerQuery.includes('teach me to breathe') || lowerQuery.includes('can you guide me') || lowerQuery.includes('help me breathe') || lowerQuery.includes('panic attack')) {
-      suggestedActivity = 'Box Breathing (4-4-4-4)';
-      suggestedCategory = 'Stress';
-    } else if (lowerQuery.includes('grounding technique') || lowerQuery.includes('help me ground') || lowerQuery.includes('5-4-3-2-1')) {
-      suggestedActivity = '5-4-3-2-1 Sensory Grounding';
-      suggestedCategory = 'Overthinking';
+    const lowerReply = reply.toLowerCase();
+
+    if (!suggestedActivity) {
+      if (
+        lowerQuery.includes('anxious') ||
+        lowerQuery.includes('panic') ||
+        lowerQuery.includes('breathe') ||
+        lowerQuery.includes('breathing') ||
+        lowerQuery.includes('heart is beating') ||
+        lowerQuery.includes('chest') ||
+        lowerQuery.includes('stress') ||
+        lowerReply.includes('breath')
+      ) {
+        suggestedActivityId = 'act-1';
+        suggestedActivity = 'Box Breathing (4-4-4-4)';
+        suggestedCategory = 'Stress';
+      } else if (
+        lowerQuery.includes('overthink') ||
+        lowerQuery.includes('spiraling') ||
+        lowerQuery.includes('my head') ||
+        lowerQuery.includes('racing') ||
+        lowerQuery.includes('ruminat') ||
+        lowerQuery.includes('thoughts won\'t stop')
+      ) {
+        suggestedActivityId = 'act-2';
+        suggestedActivity = '5-4-3-2-1 Sensory Grounding';
+        suggestedCategory = 'Overthinking';
+      } else if (
+        lowerQuery.includes('procrastinat') ||
+        lowerQuery.includes('lazy') ||
+        lowerQuery.includes('stuck') ||
+        lowerQuery.includes('motivation') ||
+        lowerQuery.includes('can\'t start')
+      ) {
+        suggestedActivityId = 'act-3';
+        suggestedActivity = 'Five-Minute Action Rule';
+        suggestedCategory = 'Low motivation';
+      } else if (
+        lowerQuery.includes('exam') ||
+        lowerQuery.includes('deadline') ||
+        lowerQuery.includes('assignment') ||
+        lowerQuery.includes('college') ||
+        lowerQuery.includes('study') ||
+        lowerQuery.includes('school') ||
+        lowerQuery.includes('homework')
+      ) {
+        suggestedActivityId = 'act-4';
+        suggestedActivity = 'Micro-Step Task Breakdown';
+        suggestedCategory = 'Academic pressure';
+      } else if (
+        lowerQuery.includes('scroll') ||
+        lowerQuery.includes('phone') ||
+        lowerQuery.includes('instagram') ||
+        lowerQuery.includes('tiktok') ||
+        lowerQuery.includes('screen')
+      ) {
+        suggestedActivityId = 'act-5';
+        suggestedActivity = 'Mindful Swap & Digital Unplug';
+        suggestedCategory = 'Excessive scrolling';
+      } else if (
+        lowerQuery.includes('lonely') ||
+        lowerQuery.includes('alone') ||
+        lowerQuery.includes('isolated') ||
+        lowerQuery.includes('no friends') ||
+        lowerQuery.includes('nobody understands')
+      ) {
+        suggestedActivityId = 'act-6';
+        suggestedActivity = 'Caring Connection Bridge';
+        suggestedCategory = 'Loneliness';
+      } else if (
+        lowerQuery.includes('jaw') ||
+        lowerQuery.includes('tension') ||
+        lowerQuery.includes('headache') ||
+        lowerQuery.includes('shoulders') ||
+        lowerQuery.includes('tired') ||
+        lowerQuery.includes('exhausted')
+      ) {
+        suggestedActivityId = 'act-7';
+        suggestedActivity = 'Mindful Body & Jaw Release';
+        suggestedCategory = 'Stress';
+      }
     }
 
     return res.status(200).json({
       reply,
       suggestedActivity,
+      suggestedActivityId,
       suggestedCategory,
     });
   } catch (error: any) {
     console.error('Error in Vercel /api/chat:', error);
     return res.status(200).json({
-      reply: "I'm right here with you. Take a slow, gentle breath. Remember that you are doing the best you can with what you have today.",
+      reply: "I'm right here with you. Take a soft, gentle breath. Remember that you are doing the best you can with what you have today.",
       suggestedActivity: 'Box Breathing (4-4-4-4)',
+      suggestedActivityId: 'act-1',
       suggestedCategory: 'Stress',
     });
   }

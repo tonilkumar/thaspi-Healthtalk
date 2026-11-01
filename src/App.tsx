@@ -24,6 +24,7 @@ import { storage } from './services/storage';
 import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
 import { Download } from 'lucide-react';
 import { usePWAInstall } from './hooks/usePWAInstall';
+import { HealPathLogo } from './components/common/HealPathLogo';
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -124,7 +125,9 @@ function MainApp() {
 
       {/* Main Mobile Shell (360px–430px mobile viewport or full width if toggled) */}
       <div
-        className={`w-full bg-[#f8f7fd] min-h-screen relative flex flex-col transition-all duration-300 ${
+        className={`w-full bg-[#f8f7fd] ${
+          currentTab === 'talk' ? 'h-screen sm:h-[94vh]' : 'min-h-screen'
+        } relative flex flex-col transition-all duration-300 ${
           isMobilePreviewMode
             ? 'max-w-md sm:rounded-[36px] sm:my-3 sm:shadow-2xl sm:border-[6px] sm:border-slate-800/90 sm:ring-8 sm:ring-purple-200/40 overflow-hidden'
             : 'max-w-2xl'
@@ -134,39 +137,19 @@ function MainApp() {
         <PWAInstallBanner />
 
         {/* Mobile Top Header */}
-        <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-4 py-2.5 border-b border-purple-100 flex items-center justify-between shadow-2xs">
+        <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md px-3.5 sm:px-4 py-2 border-b border-purple-100 flex items-center justify-between shadow-2xs">
           <div
             onClick={() => setCurrentTab('home')}
-            className="flex items-center space-x-2 cursor-pointer"
+            className="cursor-pointer transition-transform active:scale-98"
           >
-            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shadow-purple-500/20">
-              <Sparkles className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <span className="font-extrabold text-sm tracking-tight text-slate-900 block leading-tight">
-                HealPath
-              </span>
-              <span className="text-[9px] font-semibold text-purple-600 tracking-wider uppercase block">
-                Emotional Wellness
-              </span>
-            </div>
+            <HealPathLogo size="sm" variant="full" />
           </div>
 
-          <div className="flex items-center space-x-1.5">
-            {/* Quick Install Mobile App Trigger */}
-            <button
-              onClick={() => setShowInstallModal(true)}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold transition-colors cursor-pointer"
-              title="Install HealPath as Mobile App"
-            >
-              <Download className="w-3 h-3 text-purple-600" />
-              <span>Install</span>
-            </button>
-
-            {/* Quick Emergency Helpline Trigger */}
+          <div className="flex items-center space-x-2">
+            {/* Quick Emergency Helpline Trigger (clean, no extra install button) */}
             <button
               onClick={() => setShowSOSModal(true)}
-              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold transition-colors cursor-pointer"
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-[11px] font-bold transition-all shadow-2xs active:scale-95 cursor-pointer"
               title="Crisis Support & Student Helplines"
             >
               <PhoneCall className="w-3 h-3 text-rose-600 animate-pulse" />
@@ -176,7 +159,13 @@ function MainApp() {
         </header>
 
         {/* Dynamic Screen View */}
-        <main className="flex-1 overflow-x-hidden pb-20">
+        <main
+          className={
+            currentTab === 'talk'
+              ? 'flex-1 flex flex-col min-h-0 pb-16 overflow-hidden'
+              : 'flex-1 overflow-x-hidden pb-20'
+          }
+        >
           {currentTab === 'home' && (
             <HomeScreen
               onNavigate={(tab) => setCurrentTab(tab)}

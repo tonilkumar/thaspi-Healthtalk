@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { HealPathLogo } from '../common/HealPathLogo';
 
 interface AuthScreenProps {
   initialMode?: 'login' | 'register';
@@ -106,8 +107,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             ← Back to Overview
           </button>
         )}
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 text-white shadow-lg shadow-purple-500/25 mb-3">
-          <Sparkles className="w-6 h-6" />
+        <div className="flex justify-center mb-3">
+          <HealPathLogo size="lg" variant="icon-only" />
         </div>
         <h1 className="text-2xl font-bold text-slate-800">
           {isLogin ? 'Welcome Back to HealPath' : 'Join HealPath Community'}

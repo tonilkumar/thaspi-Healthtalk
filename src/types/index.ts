@@ -40,6 +40,7 @@ export interface ChatMessage {
   created_at: string;
   suggested_activity?: string;
   suggested_category?: string;
+  suggested_activity_id?: string;
 }
 
 export interface CopingActivity {

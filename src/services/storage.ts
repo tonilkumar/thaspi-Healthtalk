@@ -413,7 +413,8 @@ export class StorageService {
     message: string,
     sessionId: string = 'default-session',
     suggested_activity?: string,
-    suggested_category?: string
+    suggested_category?: string,
+    suggested_activity_id?: string
   ): ChatMessage {
     const entry: ChatMessage = {
       id: uid(),
@@ -423,6 +424,7 @@ export class StorageService {
       created_at: new Date().toISOString(),
       suggested_activity,
       suggested_category,
+      suggested_activity_id,
     };
     const raw = localStorage.getItem(STORAGE_KEYS.CHATS);
     const list: ChatMessage[] = raw ? JSON.parse(raw) : [];
