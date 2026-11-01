@@ -118,7 +118,7 @@ export const JournalScreen: React.FC<JournalScreenProps> = ({ userId, onBack }) 
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           </span>
           <p className="text-slate-300 text-[11px] leading-relaxed">
-            Your journal reflections remain strictly local and private. They are never sent to Gemini AI or shared with anyone.
+            Your journal reflections remain strictly local and private. They are never sent to HealPath AI or shared with anyone.
           </p>
         </div>
       </div>

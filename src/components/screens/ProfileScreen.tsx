@@ -16,20 +16,33 @@ import {
   RotateCcw,
   X,
   ExternalLink,
+  Smartphone,
+  Download,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { STUDENT_HELPLINES, SUPABASE_SQL_SCHEMA } from '../../data/initialData';
 import { storage } from '../../services/storage';
+import { usePWAInstall } from '../../hooks/usePWAInstall';
 
 export const ProfileScreen: React.FC = () => {
   const { user, logout, updateProfile, deleteAccount, quickLoginDemo } = useAuth();
+  const { isInstallable, install, isIOS } = usePWAInstall();
 
   // Modals
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showDatabaseModal, setShowDatabaseModal] = useState(false);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [showInstallGuideModal, setShowInstallGuideModal] = useState(false);
   const [copiedSchema, setCopiedSchema] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      await install();
+    } else {
+      setShowInstallGuideModal(true);
+    }
+  };
 
   // Edit profile form
   const [editName, setEditName] = useState(user?.name || '');
@@ -171,6 +184,19 @@ export const ProfileScreen: React.FC = () => {
             <span>Change Password</span>
           </div>
           <span className="text-slate-400">→</span>
+        </button>
+
+        <button
+          onClick={handleInstallClick}
+          className="w-full px-4 py-3.5 flex items-center justify-between text-xs font-semibold text-purple-700 bg-purple-50/30 hover:bg-purple-50 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center space-x-2.5">
+            <Smartphone className="w-4 h-4 text-purple-600" />
+            <span>Install App / Add Shortcut to Home Screen</span>
+          </div>
+          <span className="text-[10px] font-bold text-white bg-purple-600 px-2 py-0.5 rounded-full">
+            Install
+          </span>
         </button>
 
         <button
@@ -486,6 +512,68 @@ export const ProfileScreen: React.FC = () => {
             <pre className="flex-1 overflow-y-auto no-scrollbar text-[10px] font-mono leading-relaxed p-3 bg-slate-900 rounded-2xl text-slate-300">
               {SUPABASE_SQL_SCHEMA}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {/* Install Mobile App / Add Shortcut Guide Modal */}
+      {showInstallGuideModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl border border-purple-100 text-slate-800">
+            <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+              <div className="flex items-center space-x-2">
+                <div className="p-1.5 rounded-xl bg-purple-100 text-purple-700">
+                  <Smartphone className="w-4 h-4" />
+                </div>
+                <h3 className="text-sm font-bold">Add Shortcut to Home Screen</h3>
+              </div>
+              <button
+                onClick={() => setShowInstallGuideModal(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Use HealPath like a real mobile app on your smartphone with a 1-tap home screen shortcut:
+            </p>
+
+            <div className="space-y-3 bg-purple-50/60 p-3.5 rounded-2xl border border-purple-100 text-xs text-slate-700">
+              <div className="flex items-start space-x-2.5">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                  1
+                </span>
+                <span className="leading-relaxed">
+                  On iPhone (Safari), tap the <strong className="text-purple-900">Share button</strong> (square with arrow). On Android (Chrome), tap <strong className="text-purple-900">Menu (⋮)</strong>.
+                </span>
+              </div>
+
+              <div className="flex items-start space-x-2.5">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                  2
+                </span>
+                <span className="leading-relaxed">
+                  Select <strong className="text-purple-900">&quot;Add to Home Screen&quot;</strong> or <strong className="text-purple-900">&quot;Install App&quot;</strong>.
+                </span>
+              </div>
+
+              <div className="flex items-start space-x-2.5">
+                <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                  3
+                </span>
+                <span className="leading-relaxed">
+                  Tap <strong className="text-purple-900">Add</strong>. HealPath opens standalone without address bars!
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowInstallGuideModal(false)}
+              className="w-full py-2.5 rounded-xl bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

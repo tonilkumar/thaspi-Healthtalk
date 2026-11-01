@@ -106,7 +106,7 @@ export const LandingScreen: React.FC<LandingScreenProps> = ({ onGetStarted, onLo
           <div>
             <h3 className="text-sm font-bold text-slate-800">TalkSpace Companion</h3>
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
-              Empathetic AI powered by Google Gemini to vent, reflect, and unpack academic pressure without fear of judgment.
+              Empathetic HealPath AI to vent, reflect, and unpack academic pressure without fear of judgment.
             </p>
           </div>
         </div>

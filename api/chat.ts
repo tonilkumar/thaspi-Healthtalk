@@ -42,43 +42,14 @@ export default async function handler(req: any, res: any) {
     }
 
     const lastMsgObj = messages[messages.length - 1];
-    const userQuery = (lastMsgObj?.text || '').trim();
-    const lowerQuery = userQuery.toLowerCase();
-    const effectiveName = userName || 'friend';
+    const userQuery = (lastMsgObj?.text || lastMsgObj?.message || lastMsgObj?.content || '').trim();
+    const effectiveName = userName || 'Friend';
 
-    // Helper to determine suggested coping activity
-    const detectActivity = (text: string) => {
-      const t = text.toLowerCase();
-      if (t.includes('breath') || t.includes('panic') || t.includes('anxi') || t.includes('heart') || t.includes('chest')) {
-        return { activity: 'Box Breathing (4-4-4-4)', category: 'Stress' };
-      }
-      if (t.includes('spiral') || t.includes('overthink') || t.includes('mind') || t.includes('racing') || t.includes('loop')) {
-        return { activity: '5-4-3-2-1 Sensory Grounding', category: 'Overthinking' };
-      }
-      if (t.includes('procrastinat') || t.includes('motivat') || t.includes('lazy') || t.includes('start') || t.includes('tired')) {
-        return { activity: 'Five-Minute Action Rule', category: 'Low motivation' };
-      }
-      if (t.includes('exam') || t.includes('paper') || t.includes('assign') || t.includes('grade') || t.includes('study') || t.includes('class')) {
-        return { activity: 'Micro-Step Task Breakdown', category: 'Academic pressure' };
-      }
-      if (t.includes('scroll') || t.includes('phone') || t.includes('screen') || t.includes('tiktok') || t.includes('instagram')) {
-        return { activity: 'Mindful Swap & Digital Unplug', category: 'Excessive scrolling' };
-      }
-      if (t.includes('lone') || t.includes('isolate') || t.includes('friend') || t.includes('talk') || t.includes('miss')) {
-        return { activity: 'Caring Connection Bridge', category: 'Loneliness' };
-      }
-      return { activity: 'Box Breathing (4-4-4-4)', category: 'Stress' };
-    };
-
-    const suggested = detectActivity(userQuery);
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
     if (!apiKey) {
-      const fallbackReply = `I hear you, ${effectiveName}. Academic deadlines and daily pressures can feel like a heavy weight pressing on your chest. You are allowed to take a pause right now. Your worth is never defined by a single exam or assignment. Would it help if we broke this down together into one tiny, manageable step?`;
       return res.status(200).json({
-        reply: fallbackReply,
-        suggestedActivity: suggested.activity,
-        suggestedCategory: suggested.category,
+        reply: `Hi ${effectiveName}, I'm listening with care. What you're carrying right now matters, and you don't have to face it alone. Tell me more about what's been happening today?`,
       });
     }
 
@@ -93,24 +64,23 @@ export default async function handler(req: any, res: any) {
 
     const systemInstruction = `You are "TalkSpace", HealPath's compassionate, supportive AI emotional wellness companion for college students and young adults.
 The HealPath philosophy is: UNDERSTAND -> COPE -> HEAL -> GROW.
-The user's name is "${effectiveName}" and their recent logged mood is "${userMood || 'Not specified'}".
+The user's name is "${effectiveName}" and their recently logged mood is "${userMood || 'Not specified'}".
 
-Your guidelines:
-1. Tone: Warm, validating, grounded, gentle, and conversational.
-2. Structure: 2-3 short, digestible paragraphs.
-3. Validate: Acknowledge and normalize their feelings first.
-4. Follow-up: Ask at most ONE thoughtful, gentle follow-up question.
-5. Coping: Suggest a practical, zero-pressure technique.
-6. Non-clinical: You are an emotional wellness peer, NOT a doctor or therapist. Never diagnose or prescribe.
-7. Crisis Protocol: If the user indicates self-harm or severe crisis, immediately provide 988 Lifeline and Crisis Text Line (HOME to 741741) with warmth.`;
+CRITICAL CONVERSATIONAL GUIDELINES:
+1. Authentic Conversation: Talk like a warm, deeply empathetic peer or mentor. The user came here to TEXT or TALK freely about their emotions, thoughts, worries, or triumphs.
+2. Active Listening: First validate and reflect what they share so they feel deeply understood.
+3. Natural Flow: Do NOT jump into robotic multi-step numbered tutorials or force 5-step exercises on them! Keep the conversation flowing naturally, like two caring friends sitting on a bench.
+4. Reflective Inquiries: Ask at most ONE thoughtful, gentle open question that invites them to reflect or express how they are holding up.
+5. Helpful suggestions: ONLY suggest a specific micro-technique (like 4-7-8 breathing, 5-4-3-2-1 grounding, or the 5-minute kickstart) if the user explicitly asks for coping tools or describes acute panic/hyperventilation. Otherwise, focus entirely on empathetic emotional conversation.
+6. Safety Protocol: You are a peer wellness companion, not a licensed medical professional. If a user exhibits self-harm thoughts or severe crisis, immediately provide 988 Suicide & Crisis Lifeline and Crisis Text Line (HOME to 741741) with deep care.`;
 
-    const formattedContents = messages.map((m: { sender: string; text: string }) => ({
-      role: m.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: m.text }],
+    const formattedContents = messages.map((m: any) => ({
+      role: (m.sender === 'user' || m.role === 'user') ? 'user' : 'model',
+      parts: [{ text: m.text || m.message || m.content || '' }],
     }));
 
     const generatePromise = ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-2.5-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
@@ -118,7 +88,7 @@ Your guidelines:
     });
 
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('TIMEOUT')), 5000)
+      setTimeout(() => reject(new Error('TIMEOUT')), 25000)
     );
 
     let reply = '';
@@ -126,25 +96,45 @@ Your guidelines:
       const result: any = await Promise.race([generatePromise, timeoutPromise]);
       reply = result?.text?.trim() || '';
     } catch (apiErr: any) {
-      console.warn('Vercel Gemini API call timed out or failed, using responsive fallback:', apiErr?.message);
+      console.warn('Vercel Gemini API call timed out or failed, using direct fetch fallback:', apiErr?.message);
+      try {
+        const fetchUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const fetchRes = await fetch(fetchUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemInstruction }] },
+            contents: formattedContents,
+          }),
+        });
+        if (fetchRes.ok) {
+          const fetchData = await fetchRes.json();
+          reply = fetchData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        }
+      } catch (fetchErr) {
+        console.error('Direct fetch also failed:', fetchErr);
+      }
     }
 
     if (!reply) {
-      if (lowerQuery.includes('paper') || lowerQuery.includes('exam') || lowerQuery.includes('deadline') || lowerQuery.includes('paralyz')) {
-        reply = `I completely understand that feeling of paralysis, ${effectiveName}. When deadlines pile up, our nervous system treats it like an emergency, causing us to freeze. \n\nFirst, take a slow breath with me. You don't have to tackle the whole mountain this second. Can we pick just one tiny part—like writing down 3 rough bullet points for just 5 minutes? How does that feel?`;
-      } else if (lowerQuery.includes('overthink') || lowerQuery.includes('racing') || lowerQuery.includes('spiral')) {
-        reply = `It sounds like your mind is running in overdrive right now, ${effectiveName}. Overthinking often happens when our brain is trying too hard to protect us from uncertainty.\n\nLet's pull your awareness gently back into the room. Feel your feet resting on the ground, and notice one physical object near you. What color is it?`;
-      } else if (lowerQuery.includes('lone') || lowerQuery.includes('isolate') || lowerQuery.includes('alone')) {
-        reply = `Loneliness can feel surprisingly physical, ${effectiveName}, especially in college when everyone else seems like they have it all figured out. \n\nI want to remind you that needing connection is deeply human. Even reaching out with a simple "thinking of you" text to an old friend can create a little bridge of warmth. Who is one person you feel comfortable saying hi to?`;
-      } else {
-        reply = `Thank you for sharing that with me, ${effectiveName}. It takes courage to put your thoughts into words. I'm right here with you, and there's no pressure to have everything figured out right now. What is one small thing that could bring 1% more ease to your day?`;
-      }
+      reply = `I hear you, ${effectiveName}. It takes real courage to open up and share what you're holding inside. I'm right here with you. What feels like the heaviest part of this right now?`;
+    }
+
+    let suggestedActivity: string | undefined;
+    let suggestedCategory: string | undefined;
+    const lowerQuery = userQuery.toLowerCase();
+    if (lowerQuery.includes('give me an exercise') || lowerQuery.includes('teach me to breathe') || lowerQuery.includes('can you guide me') || lowerQuery.includes('help me breathe') || lowerQuery.includes('panic attack')) {
+      suggestedActivity = 'Box Breathing (4-4-4-4)';
+      suggestedCategory = 'Stress';
+    } else if (lowerQuery.includes('grounding technique') || lowerQuery.includes('help me ground') || lowerQuery.includes('5-4-3-2-1')) {
+      suggestedActivity = '5-4-3-2-1 Sensory Grounding';
+      suggestedCategory = 'Overthinking';
     }
 
     return res.status(200).json({
       reply,
-      suggestedActivity: suggested.activity,
-      suggestedCategory: suggested.category,
+      suggestedActivity,
+      suggestedCategory,
     });
   } catch (error: any) {
     console.error('Error in Vercel /api/chat:', error);

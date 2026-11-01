@@ -3,13 +3,16 @@ import {
   Send,
   Sparkles,
   RotateCcw,
-  ShieldAlert,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
   Wind,
   Compass,
-  Zap,
   Info,
-  CheckCircle2,
   Trash2,
+  Heart,
+  MessageSquare,
 } from 'lucide-react';
 import { ChatMessage, CopingActivity, MoodEntry } from '../../types';
 import { storage } from '../../services/storage';
@@ -33,6 +36,14 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
   const [loading, setLoading] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
 
+  // Voice speech-to-text state
+  const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(true);
+  const recognitionRef = useRef<any>(null);
+
+  // Voice text-to-speech state
+  const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -44,16 +55,121 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
     scrollToBottom();
   }, [messages, loading]);
 
+  // Initialize SpeechRecognition if available
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setInputText(transcript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    } else {
+      setSpeechSupported(false);
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const toggleListening = () => {
+    if (!speechSupported || !recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser. Please type your message.');
+      return;
+    }
+
+    if (isListening) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (e) {
+        console.warn('Could not start recognition:', e);
+      }
+    }
+  };
+
+  const handleSpeakText = (msgId: string, text: string) => {
+    if (!('speechSynthesis' in window)) return;
+
+    if (speakingMsgId === msgId) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgId(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95; // gently soothing pace
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setSpeakingMsgId(null);
+    };
+    utterance.onerror = () => {
+      setSpeakingMsgId(null);
+    };
+
+    setSpeakingMsgId(msgId);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Real conversational starters
   const quickPrompts = [
-    { label: 'Academic burnout', text: "I'm feeling completely overwhelmed with assignments and finals deadlines." },
-    { label: 'Overthinking loop', text: "My mind is racing and I can't stop replaying worst-case scenarios." },
-    { label: 'Zero motivation', text: "I have no energy or motivation to start studying today. How can I kickstart?" },
-    { label: 'Late night loneliness', text: "Feeling really isolated and disconnected from friends lately." },
+    { label: 'Just need to vent', text: "I'm having a really hard day and honestly just need someone to listen to me." },
+    { label: 'College burnout', text: "I feel like I'm drowning in assignments and college expectations." },
+    { label: 'Impostor feelings', text: "I keep feeling like everyone else is doing fine and I'm not good enough." },
+    { label: 'Can we just talk?', text: "Hey TalkSpace, can we just talk for a little bit? My mind feels heavy." },
   ];
 
   const handleSend = async (textToSend?: string) => {
     const content = (textToSend || inputText).trim();
     if (!content || loading) return;
+
+    if (isListening && recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+      setIsListening(false);
+    }
 
     setInputText('');
 
@@ -63,7 +179,6 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
     setLoading(true);
 
     try {
-      // Call server-side /api/chat which uses Google Gemini
       const historyPayload = [...messages, userMsg].map((m) => ({
         sender: m.sender,
         text: m.message,
@@ -86,7 +201,7 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
       const data = await res.json();
       const replyText =
         data.reply ||
-        "I'm here with you. Take a slow, steady breath. You don't have to carry this alone.";
+        "I hear you, and I'm right here with you. What feels like the most challenging part of that right now?";
 
       const aiMsg = storage.addChatMessage(
         'ai',
@@ -98,13 +213,10 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
       console.error('Chat error:', err);
-      // Gentle empathetic fallback
       const fallbackMsg = storage.addChatMessage(
         'ai',
-        "I'm right here with you, though my connection had a tiny hiccup. Let's take a deep breath together: inhale for 4 seconds, exhale for 6. Remember, you are doing the best you can today.",
-        sessionId,
-        'Box Breathing',
-        'Stress'
+        `I hear you, ${userName}. It takes vulnerability to say that out loud. I am listening with an open heart. What's on your mind?`,
+        sessionId
       );
       setMessages((prev) => [...prev, fallbackMsg]);
     } finally {
@@ -114,10 +226,9 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
 
   const handleClearChat = () => {
     storage.clearChat(sessionId);
-    // Add fresh welcome
     const welcome = storage.addChatMessage(
       'ai',
-      `Welcome to a fresh space, ${userName}. What's on your mind right now? I'm here to listen without judgment.`,
+      `Welcome to a fresh space, ${userName}. What's on your mind right now? You can type anything or tap the microphone to talk with me. I'm here to listen.`,
       sessionId
     );
     setMessages([welcome]);
@@ -133,7 +244,7 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-md mx-auto bg-gradient-to-b from-purple-50/50 via-white to-purple-50/30">
+    <div className="flex flex-col h-[calc(100dvh-13rem)] max-w-md mx-auto bg-gradient-to-b from-purple-50/50 via-white to-purple-50/30">
       {/* Top Header */}
       <div className="px-4 py-3 bg-white/95 backdrop-blur-md border-b border-purple-100 flex items-center justify-between shrink-0 shadow-sm">
         <div className="flex items-center space-x-2.5">
@@ -147,11 +258,11 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
             <h1 className="text-sm font-bold text-slate-800 flex items-center space-x-1.5">
               <span>TalkSpace Companion</span>
               <span className="text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full">
-                AI
+                HealPath AI
               </span>
             </h1>
             <p className="text-[10px] text-slate-400">
-              {userMood ? `Aware of your ${userMood.mood} mood` : 'Empathetic & non-judgmental'}
+              {userMood ? `Aware of your ${userMood.mood} mood` : 'Text or speak freely with AI'}
             </p>
           </div>
         </div>
@@ -169,15 +280,16 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
       <div className="px-4 py-1.5 bg-purple-50/70 border-b border-purple-100 text-[10px] text-purple-700 flex items-center justify-between shrink-0">
         <span className="flex items-center space-x-1 truncate">
           <Info className="w-3 h-3 text-purple-500 shrink-0" />
-          <span className="truncate">Supportive peer companion • Not clinical therapy</span>
+          <span className="truncate">Safe & supportive peer space • No judgment</span>
         </span>
-        <span className="text-[10px] font-semibold text-purple-600 shrink-0 ml-1">Confidential</span>
+        <span className="text-[10px] font-semibold text-purple-600 shrink-0 ml-1">Private</span>
       </div>
 
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar">
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
+          const isSpeaking = speakingMsgId === msg.id;
           const time = new Date(msg.created_at).toLocaleTimeString('en-US', {
             hour: 'numeric',
             minute: '2-digit',
@@ -189,7 +301,7 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
               className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} animate-in fade-in duration-200`}
             >
               <div
-                className={`max-w-[85%] rounded-3xl p-3.5 text-xs leading-relaxed shadow-sm ${
+                className={`max-w-[85%] rounded-3xl p-3.5 text-xs leading-relaxed shadow-sm relative group ${
                   isUser
                     ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-tr-xs'
                     : 'bg-white text-slate-800 border border-purple-100 rounded-tl-xs shadow-purple-500/5'
@@ -197,7 +309,34 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
               >
                 <p className="whitespace-pre-wrap">{msg.message}</p>
 
-                {/* Suggested Coping Activity Card inside AI Message */}
+                {/* Text-To-Speech Listen Button for AI replies */}
+                {!isUser && (
+                  <div className="flex items-center justify-end mt-2 pt-1 border-t border-slate-100">
+                    <button
+                      onClick={() => handleSpeakText(msg.id, msg.message)}
+                      className={`flex items-center space-x-1 px-2 py-0.5 rounded-lg text-[10px] font-medium transition-colors cursor-pointer ${
+                        isSpeaking
+                          ? 'bg-purple-100 text-purple-700 font-bold'
+                          : 'text-slate-400 hover:text-purple-600 hover:bg-purple-50'
+                      }`}
+                      title={isSpeaking ? 'Stop listening' : 'Listen to response'}
+                    >
+                      {isSpeaking ? (
+                        <>
+                          <VolumeX className="w-3 h-3 text-purple-600" />
+                          <span>Stop</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-3 h-3" />
+                          <span>Listen</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Suggested Coping Activity Card (if triggered) */}
                 {msg.suggested_activity && !isUser && (
                   <div className="mt-3 pt-2.5 border-t border-purple-100">
                     <div className="p-2 rounded-xl bg-purple-50 flex items-center justify-between">
@@ -205,7 +344,7 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
                         <Wind className="w-4 h-4 text-purple-600" />
                         <div>
                           <span className="text-[10px] uppercase font-bold text-purple-600 block">
-                            Suggested Exercise
+                            Guided Practice
                           </span>
                           <span className="text-xs font-bold text-slate-800">
                             {msg.suggested_activity}
@@ -227,20 +366,20 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
           );
         })}
 
-        {/* Typing indicator */}
+        {/* HealPath AI typing indicator */}
         {loading && (
-          <div className="flex items-center space-x-2 p-3 bg-white rounded-2xl rounded-tl-xs border border-purple-100 max-w-[120px] shadow-sm">
+          <div className="flex items-center space-x-2 p-3 bg-white rounded-2xl rounded-tl-xs border border-purple-100 max-w-[170px] shadow-sm">
             <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" />
             <div className="w-2 h-2 rounded-full bg-purple-500 animate-bounce [animation-delay:0.2s]" />
             <div className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce [animation-delay:0.4s]" />
-            <span className="text-[11px] text-slate-400 ml-1">Reflecting...</span>
+            <span className="text-[11px] text-purple-600 font-medium ml-1">HealPath AI is typing...</span>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Quick Prompt Chips */}
+      {/* Conversational Prompt Starter Chips */}
       <div className="px-3 pt-2 pb-1 bg-white/95 border-t border-purple-100/60 overflow-x-auto no-scrollbar flex space-x-2 shrink-0">
         {quickPrompts.map((qp, i) => (
           <button
@@ -253,7 +392,7 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
         ))}
       </div>
 
-      {/* Input Bar */}
+      {/* Input Bar with Text & Voice (Mic) options */}
       <div className="p-3 bg-white border-t border-purple-100 shrink-0">
         <form
           onSubmit={(e) => {
@@ -262,23 +401,48 @@ export const TalkSpaceScreen: React.FC<TalkSpaceScreenProps> = ({
           }}
           className="flex items-center space-x-2"
         >
+          {/* Voice Microphone Button */}
+          <button
+            type="button"
+            onClick={toggleListening}
+            className={`p-3 rounded-2xl transition-all cursor-pointer ${
+              isListening
+                ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
+                : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200/60'
+            }`}
+            title={isListening ? 'Listening... Tap to stop' : 'Tap to speak with voice'}
+          >
+            {isListening ? <Mic className="w-4 h-4 animate-bounce" /> : <Mic className="w-4 h-4" />}
+          </button>
+
           <input
             ref={inputRef}
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Share what you are feeling..."
+            placeholder={isListening ? 'Listening to your voice...' : 'Type or speak what you feel...'}
             disabled={loading}
-            className="flex-1 text-xs px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all"
+            className={`flex-1 text-xs px-4 py-3 rounded-2xl border transition-all ${
+              isListening
+                ? 'border-rose-400 bg-rose-50/30 ring-2 ring-rose-200'
+                : 'border-slate-200 bg-slate-50/70 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white'
+            }`}
           />
+
           <button
             type="submit"
             disabled={!inputText.trim() || loading}
-            className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 disabled:opacity-40 disabled:cursor-not-allowed hover:from-purple-700 hover:to-indigo-700 transition-all cursor-pointer"
+            className="p-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/25 disabled:opacity-40 disabled:cursor-not-allowed hover:from-purple-700 hover:to-indigo-700 transition-all cursor-pointer shrink-0"
+            title="Send Message"
           >
             <Send className="w-4 h-4" />
           </button>
         </form>
+        {isListening && (
+          <p className="text-[10px] text-rose-600 font-medium text-center mt-1 animate-pulse">
+            🔴 Listening... speak naturally and tap Send or mic when finished
+          </p>
+        )}
       </div>
 
       {/* Clear Chat Confirmation Modal */}

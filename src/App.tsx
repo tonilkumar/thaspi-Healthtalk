@@ -21,6 +21,9 @@ import { CopingActivityModal } from './components/coping/CopingActivityModal';
 import { STUDENT_HELPLINES } from './data/initialData';
 import { CopingActivity, MoodEntry, NavigationTab } from './types';
 import { storage } from './services/storage';
+import { PWAInstallBanner } from './components/pwa/PWAInstallBanner';
+import { Download } from 'lucide-react';
+import { usePWAInstall } from './hooks/usePWAInstall';
 
 function MainApp() {
   const { user, loading } = useAuth();
@@ -34,6 +37,8 @@ function MainApp() {
   const [showMoodModal, setShowMoodModal] = useState<boolean>(false);
   const [activeActivity, setActiveActivity] = useState<CopingActivity | null>(null);
   const [showSOSModal, setShowSOSModal] = useState<boolean>(false);
+  const [showInstallModal, setShowInstallModal] = useState<boolean>(false);
+  const { isInstallable, install } = usePWAInstall();
 
   // Reactive data
   const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
@@ -125,6 +130,9 @@ function MainApp() {
             : 'max-w-2xl'
         }`}
       >
+        {/* Mobile PWA Install / Shortcut Banner */}
+        <PWAInstallBanner />
+
         {/* Mobile Top Header */}
         <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md px-4 py-2.5 border-b border-purple-100 flex items-center justify-between shadow-2xs">
           <div
@@ -144,7 +152,17 @@ function MainApp() {
             </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
+            {/* Quick Install Mobile App Trigger */}
+            <button
+              onClick={() => setShowInstallModal(true)}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-[10px] font-bold transition-colors cursor-pointer"
+              title="Install HealPath as Mobile App"
+            >
+              <Download className="w-3 h-3 text-purple-600" />
+              <span>Install</span>
+            </button>
+
             {/* Quick Emergency Helpline Trigger */}
             <button
               onClick={() => setShowSOSModal(true)}
@@ -158,7 +176,7 @@ function MainApp() {
         </header>
 
         {/* Dynamic Screen View */}
-        <main className="flex-1 overflow-x-hidden">
+        <main className="flex-1 overflow-x-hidden pb-20">
           {currentTab === 'home' && (
             <HomeScreen
               onNavigate={(tab) => setCurrentTab(tab)}
@@ -270,6 +288,83 @@ function MainApp() {
                 className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer"
               >
                 Return to HealPath
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Global Modal: Install App / Add Shortcut */}
+        {showInstallModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl p-5 max-w-sm w-full space-y-4 shadow-2xl border border-purple-100 text-slate-800">
+              <div className="flex items-center justify-between pb-2 border-b border-purple-100">
+                <div className="flex items-center space-x-2">
+                  <div className="p-1.5 rounded-xl bg-purple-100 text-purple-700">
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-bold">Install HealPath Mobile App</h3>
+                </div>
+                <button
+                  onClick={() => setShowInstallModal(false)}
+                  className="p-1 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Add HealPath directly to your smartphone&apos;s home screen to experience it as a native mobile app with instant 1-tap launching and no browser URL bar:
+              </p>
+
+              {isInstallable ? (
+                <div className="space-y-3">
+                  <button
+                    onClick={async () => {
+                      await install();
+                      setShowInstallModal(false);
+                    }}
+                    className="w-full py-3 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-lg shadow-purple-500/25 flex items-center justify-center space-x-2 cursor-pointer transition-all active:scale-95"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>Install Now to Device</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 bg-purple-50/60 p-3.5 rounded-2xl border border-purple-100 text-xs text-slate-700">
+                  <div className="flex items-start space-x-2.5">
+                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      1
+                    </span>
+                    <span className="leading-relaxed">
+                      On iPhone (Safari), tap the <strong className="text-purple-900">Share icon</strong> (box with arrow). On Android (Chrome), tap <strong className="text-purple-900">Menu (⋮)</strong>.
+                    </span>
+                  </div>
+
+                  <div className="flex items-start space-x-2.5">
+                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      2
+                    </span>
+                    <span className="leading-relaxed">
+                      Tap <strong className="text-purple-900">&quot;Add to Home Screen&quot;</strong> or <strong className="text-purple-900">&quot;Install App&quot;</strong>.
+                    </span>
+                  </div>
+
+                  <div className="flex items-start space-x-2.5">
+                    <span className="w-5 h-5 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                      3
+                    </span>
+                    <span className="leading-relaxed">
+                      Confirm by tapping <strong className="text-purple-900">Add</strong>. HealPath now launches in standalone full-screen mode like a native app!
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowInstallModal(false)}
+                className="w-full py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer transition-colors"
+              >
+                Close
               </button>
             </div>
           </div>
