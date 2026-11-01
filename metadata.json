@@ -1,0 +1,6 @@
+{
+  "name": "HealPath",
+  "description": "AI-powered emotional wellness and personal growth web application designed for students and young adults.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
